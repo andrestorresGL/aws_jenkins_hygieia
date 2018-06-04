@@ -1,5 +1,9 @@
 # aws_jenkins_hygieia
 
+ The idea is to have a Hygieia (https://github.com/capitalone/Hygieia) dashboard running on AWS, so you can modify, add or remove components and the Hygieia installation is built and deployed automatically.
+
+
+
 **Prerequisites**
 
 * Terraform >= 0.11.7
