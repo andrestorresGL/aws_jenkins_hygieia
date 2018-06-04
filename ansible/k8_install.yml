@@ -1,0 +1,89 @@
+---
+- hosts: all
+  become: true
+
+  tasks:
+
+  - name: Update System
+    yum:
+      name: '*'
+      state: latest
+
+  - name: Install packages
+    yum:
+      name:
+        - yum-utils
+        - wget
+      state: latest
+        
+
+  - name: Download EPEL Release
+    get_url: 
+     url: http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm 
+     dest: /home/ec2-user/epel-release-latest-7.noarch.rpm
+
+  - name: Install EPEL Release
+    yum: 
+      name: /home/ec2-user/epel-release-latest-7.noarch.rpm
+      state: present
+
+  - name: Add Docker Repo
+    yum_repository:
+      name: dockerrepo
+      description: Docker Repository
+      baseurl: https://yum.dockerproject.org/repo/main/centos/7/
+      gpgcheck: 1
+      gpgkey: https://yum.dockerproject.org/gpg
+      
+  - name: Enable RHEL extras
+    shell: yum-config-manager --enable rhui-REGION-rhel-server-extras
+  
+  - name: Install Docker
+    yum:
+      name: docker-engine-17.03.0.ce-1.el7.centos
+      state: present
+
+  - name: Run Docker
+    service: 
+      name: docker 
+      state: restarted 
+      enabled: yes
+
+  - name: Create K8 Repo
+    yum_repository: 
+      name: kubernetes
+      description: Kubernetes Repository
+      baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+      gpgcheck: 1
+      gpgkey: https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+
+  
+  - selinux:
+      state: disabled
+
+  - name: Install Kubernetes
+    yum:
+      name:
+        - kubelet
+        - kubeadm
+      state: latest
+        
+  
+  - name: Enable Kubelet
+    service: 
+      name: kubelet 
+      state: started 
+      enabled: yes
+
+  - name: Configure Cgroup used by Kubelet
+    shell: sed -i "s/cgroup-driver=systemd/cgroup-driver=cgroupfs/g" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf    
+
+  - name: Reload daemon
+    shell: systemctl daemon-reload
+  
+  - name: Restart Kubelet
+    service:
+      name: kubelet
+      state: restarted
+
+  

@@ -1,0 +1,15 @@
+---
+- hosts: all
+  become: true
+  tasks:
+  - name: K8s | Reset Kubernetes component
+    shell: "kubeadm reset"
+
+  - name: K8s | Join to Kubernetes cluster
+    shell: "kubeadm join --skip-preflight-checks --token {{ k8s_token }} {{private_ip}}:6443 --discovery-token-unsafe-skip-ca-verification"
+
+  - name: K8s | Restart kubelet
+    ervice: 
+      name: kubelet 
+      state: restarted 
+      enabled: yes

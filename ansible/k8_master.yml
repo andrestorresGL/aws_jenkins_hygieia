@@ -1,0 +1,35 @@
+---
+- hosts: all
+  become: true
+  tasks:
+  - name: K8s | Reset Kubernetes component
+    shell: "kubeadm reset"
+
+  - name: K8s | Config Bridge Iptables
+    shell: 
+      cmd: |
+        cat <<EOF >  /etc/sysctl.d/k8s.conf
+        net.bridge.bridge-nf-call-ip6tables = 1
+        net.bridge.bridge-nf-call-iptables = 1
+        EOF
+      
+  - name: "Reload sysctl"
+    shell: sysctl --system
+    
+  - name: "K8s Init Master"
+    shell: "kubeadm init --token {{ k8s_token }} --pod-network-cidr={{k8_cidr}}"
+
+
+  - name: "Create kube Dir"
+    become: false
+    shell: |
+      mkdir -p /home/ec2-user/.kube
+
+  - name: "Copy admin.conf to .kube"
+    shell: |
+      cp -i /etc/kubernetes/admin.conf /home/ec2-user/.kube/config
+      chown ec2-user:ec2-user /home/ec2-user/.kube/config
+    
+  - name: "Apply Romana network"
+    become: false
+    shell:  "kubectl apply -f https://raw.githubusercontent.com/romana/romana/master/containerize/specs/romana-kubeadm.yml"
