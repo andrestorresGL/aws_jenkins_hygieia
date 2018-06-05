@@ -9,6 +9,7 @@
         - git
         - yum-utils
         - wget
+        - bzip2
       state: present 
   
   - name: Download EPEL Release
@@ -84,7 +85,6 @@
         - make
         - flex 
         - bison 
-        - gperf 
         - ruby
         - openssl-devel 
         - freetype-devel 
@@ -132,31 +132,48 @@
       owner: jenkins
       group: jenkins
       mode: 0775
-    
-  - name: remove wizard
-    copy:
-      src: jenkins.install.UpgradeWizard.state
-      dest: /var/lib/jenkins/jenkins.install.UpgradeWizard.state
-      owner: jenkins
-      group: jenkins
-      mode: 0644
-    copy:
-      src: jenkins.install.InstallUtil.lastExecVersion
-      dest: /var/lib/jenkins/jenkins.install.InstallUtil.lastExecVersion
-      owner: jenkins
-      group: jenkins
-      mode: 0644
+
+  - name: Remove wizard Step 1
+    copy: 
+      src: jenkins.install.UpgradeWizard.state 
+      dest: /var/lib/jenkins/jenkins.install.UpgradeWizard.state 
+      owner: jenkins 
+      group: jenkins 
+      mode: 0644 
+    copy: 
+      src: jenkins.install.InstallUtil.lastExecVersion 
+      dest: /var/lib/jenkins/jenkins.install.InstallUtil.lastExecVersion 
+      owner: jenkins 
+      group: jenkins 
+      mode: 0644  
+
+  - name: Disable setup wizard Step 2
+    jenkins_script:
+      script: |
+        import static jenkins.model.Jenkins.instance as jenkins
+        import jenkins.install.InstallState
+        if (!jenkins.installState.isSetupComplete()) {
+          InstallState.INITIAL_SETUP_COMPLETED.initializeState()
+        }
+      user: "admin"
+      password: "admin"
     
   - name: Copy Script Installation Plugins
     copy:
-      src: install_jenkins_plugin.sh
-      dest: /var/lib/jenkins/install_jenkins_plugin.sh
+      src: plugins-add.groovy
+      dest: /var/lib/jenkins/init.groovy.d/plugins-add.groovy
       owner: jenkins
       group: jenkins
       mode: 0775
 
-  - name: Install Plugins
-    shell: /var/lib/jenkins/install_jenkins_plugin.sh pipeline-maven  github docker-build-publish docker-worlflow job-dsl
+  
+  - name: Copy Pipeline script
+    copy:
+      src: pipeline.groovy
+      dest: /var/lib/jenkins/init.groovy.d/pipeline.groovy
+      owner: jenkins
+      group: jenkins
+      mode: 0775
 
   - name: Add the user Jenkins to Docker Group
     user:

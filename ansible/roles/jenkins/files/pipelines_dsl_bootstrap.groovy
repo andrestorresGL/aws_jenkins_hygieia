@@ -3,19 +3,28 @@ mavenJob('Build Hygieia Images') {
     logRotator(-1, 10)
     jdk('java8')
     scm {
-        github('aetorres/Hygieia', 'master')
-    }
+        git {
+            remote {
+                name('origin')
+                url('https://github.com/aetorres/Hygieia.git')
+              }
+            
+            branch('master')
+        }
+    }   
     triggers {
         githubPush()
     }
    preBuildSteps {
-        shell("mvn docker:build")
+        shell(''' mvn clean install package 
+         mvn docker:build
+         ''')
     }
     publishers {
         postBuildScripts {
             steps {
                 shell('''
-                docker login -u atorresd -p *23Andres**
+                docker login -u atorresd -p ******
                 docker push atorresd/hygieia-ui
                 docker push atorresd/hygieia-score-collector
                 docker push atorresd/hygieia-nexus-iq-collector
