@@ -17,6 +17,7 @@
  export AWS_SECRET_ACCESS_KEY=XXXXXXXXX
 
 ```
+* Create your Key Pair on the region where is going to be deployed the solution
 * Configure your Key file on the `aws-variables.tf`
 ```
 variable "key_pair" {

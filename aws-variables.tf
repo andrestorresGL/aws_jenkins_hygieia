@@ -14,9 +14,9 @@ variable "amis" {
 variable "amik8" {
   default = {
     us-east-1 = "ami-6871a115"
-    us-east-2 = "ami-e97c548c" //definir amis de Redhat
-    us-west-1 = "ami-ee03078e"
-    us-west-2 = "ami-7707a10f"
+    us-east-2 = "ami-03291866"
+    us-west-1 = "ami-18726478"
+    us-west-2 = "ami-28e07e50"
   }
 }
 
