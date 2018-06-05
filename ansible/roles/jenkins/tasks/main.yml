@@ -147,16 +147,17 @@
       group: jenkins
       mode: 0644
     
-  # - name: Install Plugins
-  #   copy:
-  #     src: plugins-add.groovy
-  #     dest: /var/lib/jenkins/init.groovy.d/plugins-add.groovy
-  #     owner: jenkins
-  #     group: jenkins
-  #     mode: 0775
+  - name: Copy Script Installation Plugins
+    copy:
+      src: install_jenkins_plugin.sh
+      dest: /var/lib/jenkins/install_jenkins_plugin.sh
+      owner: jenkins
+      group: jenkins
+      mode: 0775
 
-   usermod -G docker jenkins
-  
+  - name: Install Plugins
+    shell: /var/lib/jenkins/install_jenkins_plugin.sh pipeline-maven  github docker-build-publish docker-worlflow job-dsl
+
   - name: Add the user Jenkins to Docker Group
     user:
       name: jenkins

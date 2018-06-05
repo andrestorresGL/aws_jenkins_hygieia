@@ -1,6 +1,6 @@
 import jenkins.model.*
 
-def pluginParameter="pipeline-maven  github docker-build-publish docker-worlflow"
+def pluginParameter="pipeline-maven  github docker-build-publish docker-worlflow job-dsl"
 def plugins = pluginParameter.split()
 println(plugins)
 def instance = Jenkins.getInstance()
