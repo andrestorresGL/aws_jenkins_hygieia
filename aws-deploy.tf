@@ -215,42 +215,6 @@ resource "aws_instance" "jenkins" {
   }
 }
 
-//Provisioning MongoDB
-resource "aws_instance" "mongo" {
-  ami                    = "${lookup(var.amis, var.region)}"
-  instance_type          = "${var.instance_type[0]}"
-  subnet_id              = "${module.vpc.public_subnets[0]}"
-  vpc_security_group_ids = ["${module.sg_ssh.this_security_group_id}"]
-
-  count                       = 1
-  key_name                    = "${var.key_pair}"
-  monitoring                  = false
-  associate_public_ip_address = true
-
-  root_block_device = {
-    volume_size = 20
-  }
-
-  provisioner "local-exec" {
-    command = <<EOT
-              sleep 120
-              ansible-playbook -u ec2-user --private-key=~/.ssh/new-key-pair.pem -i '${aws_instance.mongo.public_ip},'  ansible/mongo.yml
-              EOT
-  }
-
-  tags = {
-    Name      = "Mongo Server"
-    Terraform = "True"
-  }
-
-  volume_tags = {
-    Name      = "Mongo Server"
-    Terraform = "True"
-  }
-}
-
-//Provisioning K8 Master
-
 resource "aws_instance" "k8-master" {
   ami                    = "${lookup(var.amik8, var.region)}"
   instance_type          = "${var.instance_type[1]}"

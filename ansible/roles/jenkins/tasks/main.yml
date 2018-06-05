@@ -1,0 +1,111 @@
+---
+- hosts: all
+  become: true
+
+  tasks:
+  - name: Update System
+    yum:
+      name: "*"
+      state: latest
+  
+  - name: Download EPEL Release
+    get_url: 
+     url: http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm 
+     dest: /home/ec2-user/epel-release-latest-7.noarch.rpm
+
+  - name: Install EPEL Release
+    yum: 
+      name: /home/ec2-user/epel-release-latest-7.noarch.rpm
+      state: present
+  
+  - name: Add Docker Repo
+    yum_repository:
+      name: dockerrepo
+      description: Docker Repository
+      baseurl: https://yum.dockerproject.org/repo/main/centos/7/
+      gpgcheck: 1
+      gpgkey: https://yum.dockerproject.org/gpg
+      
+  - name: Enable RHEL extras
+    shell: yum-config-manager --enable rhui-REGION-rhel-server-extras
+  
+  - name: Install Docker
+    yum:
+      name: docker-engine-17.03.0.ce-1.el7.centos
+      state: present
+
+  - name: Run Docker
+    service: 
+      name: docker 
+      state: restarted 
+      enabled: yes
+      
+  - name: Install Git
+    yum:
+      name: git
+      state: present
+
+
+  - name: Download JAva 8
+    get_url:
+      url: http://download.oracle.com/otn-pub/java/jdk/8u171-b11/512cd62ec5174c3487ac17c61aaa89e8/jdk-8u171-linux-x64.rpm
+      dest: /home/ec2-user/jdk-8u171-linux-x64.rpm
+  
+  - name: Install Java 8
+    yum:
+      name: /home/ec2-user/jdk-8u171-linux-x64.rpm
+      state: present
+
+  - name:  Remove Java 7
+    package: 
+      name: java-1.7.0-openjdk
+      state: absent
+
+  - name: Install Maven 
+    shell: |
+      cd /usr/local
+      wget http://www-us.apache.org/dist/maven/maven-3/3.5.3/binaries/apache-maven-3.5.3-bin.tar.gz
+      tar -xf apache-maven-3.5.3-bin.tar.gz
+      sudo ln -s apache-maven-3.5.3  maven
+      echo "export M2_HOME=/usr/local/maven" >> /etc/profile.d/maven.sh
+      echo "export PATH=/usr/local/maven/bin:${PATH}" >> /etc/profile.d/maven.sh
+      source /etc/profile.d/maven.sh
+
+
+  - name: Get Jenkins Repo
+    yum_repository:
+      name: jenkinsrepo
+      description: Jenkins Repository
+      baseurl: http://pkg.jenkins-ci.org/redhat/jenkins.repo
+      gpgcheck: 1
+      gpgkey: https://jenkins-ci.org/redhat/jenkins-ci.org.key
+  
+  - name: Install jenkins
+    yum:
+      name: jenkins
+      state: present
+  
+
+
+  - name: Create init.groovy.d
+    file:
+      path: /var/lib/jenkins/init.groovy.d
+      state: directory
+      owner: jenkins
+      group: jenkins
+      mode: 0775
+  
+  - name: Create user Admin
+    copy:
+      src: admin_user.groovy
+      dest: /var/lib/jenkins/init.groovy.d/admin_user.groovy
+      owner: jenkins
+      group: jenkins
+      mode: 0775
+    
+  # - name: remove wizard
+  # - name: install plugins
+  - name: Restart Jenkins
+    service:
+      name: jenkins
+      state: restarted
