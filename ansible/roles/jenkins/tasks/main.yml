@@ -1,12 +1,15 @@
----
-- hosts: all
-  become: true
-
-  tasks:
   - name: Update System
     yum:
       name: "*"
       state: latest
+  
+  - name: Install Git & Utils
+    yum:
+      name: 
+        - git
+        - yum-utils
+        - wget
+      state: present 
   
   - name: Download EPEL Release
     get_url: 
@@ -18,6 +21,9 @@
       name: /home/ec2-user/epel-release-latest-7.noarch.rpm
       state: present
   
+  - selinux:
+      state: disabled
+
   - name: Add Docker Repo
     yum_repository:
       name: dockerrepo
@@ -39,17 +45,12 @@
       name: docker 
       state: restarted 
       enabled: yes
-      
-  - name: Install Git
-    yum:
-      name: git
-      state: present
-
+  
 
   - name: Download JAva 8
-    get_url:
-      url: http://download.oracle.com/otn-pub/java/jdk/8u171-b11/512cd62ec5174c3487ac17c61aaa89e8/jdk-8u171-linux-x64.rpm
-      dest: /home/ec2-user/jdk-8u171-linux-x64.rpm
+    shell: |
+      wget --no-cookies --no-check-certificate --header "Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie" http://download.oracle.com/otn-pub/java/jdk/8u171-b11/512cd62ec5174c3487ac17c61aaa89e8/jdk-8u171-linux-x64.rpm
+      
   
   - name: Install Java 8
     yum:
@@ -71,21 +72,50 @@
       echo "export PATH=/usr/local/maven/bin:${PATH}" >> /etc/profile.d/maven.sh
       source /etc/profile.d/maven.sh
 
-
-  - name: Get Jenkins Repo
-    yum_repository:
-      name: jenkinsrepo
-      description: Jenkins Repository
-      baseurl: http://pkg.jenkins-ci.org/redhat/jenkins.repo
-      gpgcheck: 1
-      gpgkey: https://jenkins-ci.org/redhat/jenkins-ci.org.key
+  - name: Install NPM
+    shell: curl --silent --location https://rpm.nodesource.com/setup_10.x | sudo bash -
   
-  - name: Install jenkins
-    yum:
-      name: jenkins
+  - name: Install NPM and Dependencies 
+    yum: 
+      name: 
+        - nodejs
+        - gcc 
+        - gcc-c++ 
+        - make
+        - flex 
+        - bison 
+        - gperf 
+        - ruby
+        - openssl-devel 
+        - freetype-devel 
+        - fontconfig-devel 
+        - libicu-devel 
+        - sqlite-devel 
+        - libpng-devel 
+        - libjpeg-devel
+        - bzip2
       state: present
-  
+  # - name: Download Repo jenkins
+  #   shell: |
+  #     wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat/jenkins.repo
+  #     rpm --import https://pkg.jenkins.io/redhat/jenkins.io.key
 
+  - name: Download Jenkins RPM
+    get_url:
+      url:  https://pkg.jenkins.io/redhat/jenkins-2.122-1.1.noarch.rpm
+      dest: /home/ec2-user/jenkins-2.122-1.1.noarch.rpm
+  
+  - name: Install Jenkins  
+    yum: 
+      name: /home/ec2-user/jenkins-2.122-1.1.noarch.rpm
+      state: present
+
+   # - name: install plugins
+  - name: Restart Jenkins
+    service:
+      name: jenkins
+      state: restarted
+      enabled: yes
 
   - name: Create init.groovy.d
     file:
@@ -97,15 +127,44 @@
   
   - name: Create user Admin
     copy:
-      src: admin_user.groovy
-      dest: /var/lib/jenkins/init.groovy.d/admin_user.groovy
+      src: basic-security.groovy
+      dest: /var/lib/jenkins/init.groovy.d/basic-security.groovy
       owner: jenkins
       group: jenkins
       mode: 0775
     
-  # - name: remove wizard
-  # - name: install plugins
-  - name: Restart Jenkins
+  - name: remove wizard
+    copy:
+      src: jenkins.install.UpgradeWizard.state
+      dest: /var/lib/jenkins/jenkins.install.UpgradeWizard.state
+      owner: jenkins
+      group: jenkins
+      mode: 0644
+    copy:
+      src: jenkins.install.InstallUtil.lastExecVersion
+      dest: /var/lib/jenkins/jenkins.install.InstallUtil.lastExecVersion
+      owner: jenkins
+      group: jenkins
+      mode: 0644
+    
+  # - name: Install Plugins
+  #   copy:
+  #     src: plugins-add.groovy
+  #     dest: /var/lib/jenkins/init.groovy.d/plugins-add.groovy
+  #     owner: jenkins
+  #     group: jenkins
+  #     mode: 0775
+
+   usermod -G docker jenkins
+  
+  - name: Add the user Jenkins to Docker Group
+    user:
+      name: jenkins
+      group: docker
+
+  - name: Restart Jenkins due Plugins Install
     service:
       name: jenkins
       state: restarted
+
+ 

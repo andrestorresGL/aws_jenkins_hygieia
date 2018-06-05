@@ -183,11 +183,11 @@ module "sg_ssh" {
 }
 
 resource "aws_instance" "jenkins" {
-  ami                    = "${lookup(var.amis, var.region)}"
-  instance_type          = "${var.instance_type[2]}"
-  subnet_id              = "${module.vpc.public_subnets[0]}"
-  vpc_security_group_ids = ["${module.sg.this_security_group_id}"]
-
+  ami                         = "${lookup(var.amik8, var.region)}"
+  instance_type               = "${var.instance_type[2]}"
+  subnet_id                   = "${module.vpc.public_subnets[0]}"
+  vpc_security_group_ids      = ["${module.sg.this_security_group_id}"]
+  private_ip                  = "10.8.0.10"
   count                       = 1
   key_name                    = "${var.key_pair}"
   monitoring                  = false

@@ -9,7 +9,7 @@
     shell: "kubeadm join --skip-preflight-checks --token {{ k8s_token }} {{private_ip}}:6443 --discovery-token-unsafe-skip-ca-verification"
 
   - name: K8s | Restart kubelet
-    ervice: 
+    service: 
       name: kubelet 
       state: restarted 
       enabled: yes
