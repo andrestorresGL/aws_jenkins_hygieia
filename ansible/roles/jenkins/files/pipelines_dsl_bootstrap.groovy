@@ -1,7 +1,7 @@
 #!/usr/bin/env groovy
-mavenJob('Build Hygieia Images') {
+def myJob = mavenJob('Build Hygieia Images') {
     logRotator(-1, 10)
-    jdk('java8')
+    jdk('jdk8')
     scm {
         git {
             remote {
