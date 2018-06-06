@@ -3,7 +3,7 @@ import java.util.logging.Logger
 def logger = Logger.getLogger("")
 def installed = false
 def initialized = false
-def pluginParameter=" github maven-plugin job-dsl github-api.1.90"
+def pluginParameter=" github maven-plugin job-dsl github-api.1.90 workflow-aggregator pipeline-utility-steps pipeline-github"
 def plugins = pluginParameter.split()
 logger.info("" + plugins)
 def instance = Jenkins.getInstance()

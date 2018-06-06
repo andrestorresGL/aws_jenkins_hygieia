@@ -109,14 +109,17 @@
     yum: 
       name: /home/ec2-user/jenkins-2.122-1.1.noarch.rpm
       state: present
-
+  
    # - name: install plugins
-  - name: Restart Jenkins
+  - name: Start Jenkins
     service:
       name: jenkins
-      state: restarted
+      state: started
       enabled: yes
 
+  - pause:
+      seconds: 40
+  
   - name: Create init.groovy.d
     file:
       path: /var/lib/jenkins/init.groovy.d
@@ -146,17 +149,17 @@
       owner: jenkins 
       group: jenkins 
       mode: 0644  
-
-  - name: Disable setup wizard Step 2
-    jenkins_script:
-      script: |
-        import static jenkins.model.Jenkins.instance as jenkins
-        import jenkins.install.InstallState
-        if (!jenkins.installState.isSetupComplete()) {
-          InstallState.INITIAL_SETUP_COMPLETED.initializeState()
-        }
-      user: "admin"
-      password: "admin"
+  
+  # - name: Disable setup wizard Step 2
+  #   jenkins_script:
+  #     script: |
+  #       import static jenkins.model.Jenkins.instance as jenkins
+  #       import jenkins.install.InstallState
+  #       if (!jenkins.installState.isSetupComplete()) {
+  #         InstallState.INITIAL_SETUP_COMPLETED.initializeState()
+  #       }
+  #     user: "admin"
+  #     password: "admin"
     
   - name: Copy Script Installation Plugins
     copy:
@@ -167,10 +170,18 @@
       mode: 0775
 
   
-  - name: Copy Pipeline script
+  - name: Copy Job script
     copy:
       src: pipeline.groovy
       dest: /var/lib/jenkins/init.groovy.d/pipeline.groovy
+      owner: jenkins
+      group: jenkins
+      mode: 0775
+
+  - name: Copy Pipeline script
+    copy:
+      src: pipeline.groovy
+      dest: /var/lib/jenkins/pipeline_dls_bootstrap.groovy
       owner: jenkins
       group: jenkins
       mode: 0775

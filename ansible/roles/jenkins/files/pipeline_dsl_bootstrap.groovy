@@ -1,33 +1,35 @@
 #!/usr/bin/env groovy
-def myJob = mavenJob('Build Hygieia Images') {
-    logRotator(-1, 10)
-    jdk('jdk8')
-    scm {
-        git {
-            remote {
-                name('origin')
-                url('https://github.com/aetorres/Hygieia.git')
-              }
-            
-            branch('master')
-        }
-    }   
-    triggers {
-        githubPush()
+pipeline{
+  agent any 
+
+  stages {
+    stage('Build Project'){
+      steps{
+        git(
+          url: 'https://github.com/aetorres/Hygieia.git',
+          credentialsId: 'git-pass',
+          branch: 'master'
+                )
+      sh '''/usr/local/maven/bin/mvn clean install package'''
+      }
+      
     }
-   preBuildSteps {
-        shell(''' mvn clean install package 
-         mvn docker:build
-         ''')
+
+    stage('Create Docker Images'){
+      steps{
+        sh '''/usr/local/maven/bin/mvn docker:build'''
+      }
+      
     }
-    publishers {
-        postBuildScripts {
-            steps {
-                shell('''
-                docker login -u atorresd -p ******
+
+    stage('Push Images to Docker Hub'){
+      steps{
+        //withDockerRegistry([credentialsId: 'docker-pass', url: 'https://hub.docker.com']){ 
+        sh '''    
+                docker login -u atorresd -p *****
                 docker push atorresd/hygieia-ui
                 docker push atorresd/hygieia-score-collector
-                docker push atorresd/hygieia-nexus-iq-collector
+                docker push atorresd/hygieia-nexus-iq-collector 
                 docker push atorresd/hygieia-hspm-cmdb-collector
                 docker push atorresd/hygieia-gitlab-scm-collector
                 docker push atorresd/hygieia-subversion-scm-collector
@@ -49,10 +51,12 @@ def myJob = mavenJob('Build Hygieia Images') {
                 docker push atorresd/hygieia-artifactory-artifact-collector
                 docker push atorresd/hygieia-apiaudit
                 docker push atorresd/hygieia-api
-            ''')
-            }
-            onlyIfBuildSucceeds(true)
-           
-        }
+      
+      
+      '''
+     // }
+      
+      }
     }
+  }
 }

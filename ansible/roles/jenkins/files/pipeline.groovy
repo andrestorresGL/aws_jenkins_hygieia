@@ -1,8 +1,14 @@
-import javaposse.jobdsl.plugin.*;
-def jobDslBuildStep = new ExecuteDslScripts(
-                            targets: "pipelines_dsl_bootstrap.groovy",
-                            usingScriptText: false,
-                            ignoreExisting: false,
-                            removedJobAction: RemovedJobAction.DELETE,
-                            removedViewAction: RemovedViewAction.IGNORE
-                            );
+pipelineJob('Test Hygieia') { 
+    logRotator(-1, 50, -1, -1)
+    configure {
+         it / definition / lightweight(true)
+    }
+    
+    concurrentBuild(false)
+    definition {
+        cps {
+            script('/var/lib/jenkins/pipeline_dsl_bootstrap.groovy')
+            sandbox(true)
+        }
+        }
+}
