@@ -3,6 +3,8 @@
  The idea is to have a Hygieia (https://github.com/capitalone/Hygieia) dashboard running on AWS, so you can modify, add or remove components and the Hygieia installation is built and deployed automatically.
 
 
+![Architecture](arquitecture.png)
+
 
 **Prerequisites**
 

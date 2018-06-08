@@ -96,8 +96,8 @@ module "sg" {
 module "sg_ssh" {
   source = "terraform-aws-modules/security-group/aws"
 
-  name        = "mongo_sg"
-  description = "Mongo Security Group"
+  name        = "kubernetes_sg"
+  description = "Kubernetes Security Group"
   vpc_id      = "${module.vpc.vpc_id}"
 
   ingress_with_cidr_blocks = [
@@ -177,7 +177,7 @@ module "sg_ssh" {
   ]
 
   tags = {
-    Name      = "Mongo Server"
+    Name      = "Kubernetes ports"
     Terraform = "True"
   }
 }
@@ -200,7 +200,8 @@ resource "aws_instance" "jenkins" {
   provisioner "local-exec" {
     command = <<EOT
               sleep 120
-              ansible-playbook -u ec2-user --private-key=~/.ssh/new-key-pair.pem -i '${aws_instance.jenkins.public_ip},'  ansible/jenkins.yml
+              ansible-playbook -u ec2-user --private-key=~/.ssh/new-key-pair.pem -i '${aws_instance.jenkins.public_ip},'  ansible/jenkins.yml --extra-vars "k8s_ip=${aws_instance.k8-master.public_ip}"
+              
               EOT
   }
 
@@ -216,11 +217,11 @@ resource "aws_instance" "jenkins" {
 }
 
 resource "aws_instance" "k8-master" {
-  ami                    = "${lookup(var.amik8, var.region)}"
-  instance_type          = "${var.instance_type[1]}"
-  subnet_id              = "${module.vpc.public_subnets[0]}"
-  vpc_security_group_ids = ["${module.sg_ssh.this_security_group_id}"]
-
+  ami                         = "${lookup(var.amik8, var.region)}"
+  instance_type               = "${var.instance_type[1]}"
+  subnet_id                   = "${module.vpc.public_subnets[0]}"
+  vpc_security_group_ids      = ["${module.sg_ssh.this_security_group_id}"]
+  private_ip                  = "10.8.0.110"
   count                       = 1
   key_name                    = "${var.key_pair}"
   monitoring                  = false
@@ -271,6 +272,7 @@ resource "aws_instance" "k8-worker" {
                 ansible-playbook -u ec2-user --private-key=~/.ssh/new-key-pair.pem -i '${self.public_ip},'  ansible/k8_install.yml
                 sleep 60
                 ansible-playbook -u ec2-user --private-key=~/.ssh/new-key-pair.pem -i '${self.public_ip},'  ansible/k8_worker.yml --extra-vars "k8s_token=501a5t.on7auxtxyq3hfpwq private_ip=${aws_instance.k8-master.private_ip}"
+
                 EOT
   }
 
@@ -311,6 +313,34 @@ resource "aws_elb" "prodapp-elb" {
 
   tags {
     Name        = "ATApp-terraform-elb"
+    Environment = "Production"
+  }
+}
+
+resource "aws_elb" "hygieia-elb" {
+  name = "ATApp-hygieia-elb"
+
+  #availability_zones = ["us-west-2a", "us-west-2b", "us-west-2c"] 
+  security_groups = ["${module.sg-elb.this_security_group_id}"]
+  subnets         = ["${module.vpc.public_subnets[0]}"]
+
+  listener {
+    instance_port     = 8080
+    instance_protocol = "http"
+    lb_port           = 80
+    lb_protocol       = "http"
+  }
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 3
+    target              = "tcp:8080"
+    interval            = 30
+  }
+
+  tags {
+    Name        = "ATApp-hygieia-elb"
     Environment = "Production"
   }
 }

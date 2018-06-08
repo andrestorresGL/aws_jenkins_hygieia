@@ -2,16 +2,7 @@
     yum:
       name: "*"
       state: latest
-  
-  - name: Install Git & Utils
-    yum:
-      name: 
-        - git
-        - yum-utils
-        - wget
-        - bzip2
-      state: present 
-  
+
   - name: Download EPEL Release
     get_url: 
      url: http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm 
@@ -22,6 +13,19 @@
       name: /home/ec2-user/epel-release-latest-7.noarch.rpm
       state: present
   
+  - name: Install Git & Utils
+    yum:
+      name: 
+        - git
+        - yum-utils
+        - wget
+        - bzip2
+        - python-pip
+      state: present 
+
+  - name: Install AWSCLI
+    shell: pip install awscli
+
   - selinux:
       state: disabled
 
@@ -93,7 +97,6 @@
         - sqlite-devel 
         - libpng-devel 
         - libjpeg-devel
-        - bzip2
       state: present
   # - name: Download Repo jenkins
   #   shell: |
@@ -143,45 +146,19 @@
       owner: jenkins 
       group: jenkins 
       mode: 0644 
+  
+  - name: Disable setup wizard Step 2
     copy: 
       src: jenkins.install.InstallUtil.lastExecVersion 
       dest: /var/lib/jenkins/jenkins.install.InstallUtil.lastExecVersion 
       owner: jenkins 
       group: jenkins 
       mode: 0644  
-  
-  # - name: Disable setup wizard Step 2
-  #   jenkins_script:
-  #     script: |
-  #       import static jenkins.model.Jenkins.instance as jenkins
-  #       import jenkins.install.InstallState
-  #       if (!jenkins.installState.isSetupComplete()) {
-  #         InstallState.INITIAL_SETUP_COMPLETED.initializeState()
-  #       }
-  #     user: "admin"
-  #     password: "admin"
     
   - name: Copy Script Installation Plugins
     copy:
       src: plugins-add.groovy
       dest: /var/lib/jenkins/init.groovy.d/plugins-add.groovy
-      owner: jenkins
-      group: jenkins
-      mode: 0775
-
-  
-  - name: Copy Job script
-    copy:
-      src: pipeline.groovy
-      dest: /var/lib/jenkins/init.groovy.d/pipeline.groovy
-      owner: jenkins
-      group: jenkins
-      mode: 0775
-
-  - name: Copy Pipeline script
-    copy:
-      src: pipeline.groovy
-      dest: /var/lib/jenkins/pipeline_dls_bootstrap.groovy
       owner: jenkins
       group: jenkins
       mode: 0775
@@ -196,4 +173,51 @@
       name: jenkins
       state: restarted
 
- 
+  - name: Copy Jenkins config file
+    file:
+      src: jenkins
+      dest: /etc/sysconfig/jenkins
+      owner: root
+      group: root
+      mode: 0600
+  
+  - name: Copy Pipeline script
+    copy:
+      src: pipeline_dsl_bootstrap.groovy
+      dest: /var/lib/jenkins/init.groovy.d/pipeline_dsl_bootstrap.groovy
+      owner: jenkins
+      group: jenkins
+      mode: 0775
+    
+  - name: Create .Kube
+    file:
+      path: /home/ec2-user/.kube
+      state: directory
+      owner: ec2-user
+      group: ec2-user
+      mode: 0775
+  
+  - name: Install Kubectl
+    shell: |
+      curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+      chmod +x ./kubectl
+      sudo mv ./kubectl /usr/local/bin/kubectl
+      export PATH=/usr/local/bin:$PATH 
+
+  - name: Copy Key    
+    copy:
+      src: ~/.ssh/new-key-pair.pem
+      dest: /home/ec2-user/.ssh/new-key-pair.pem
+      owner: ec2-user
+      group: ec2-user
+      mode: 0400
+
+  - name: Copy Remote-To-Remote (from K8 Master to Jenkins)
+    become: false
+    shell: |
+        scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i /home/ec2-user/.ssh/new-key-pair.pem ec2-user@10.8.0.110:/home/ec2-user/.kube/config  /home/ec2-user/.kube/config   
+    
+  # - name: Copy Kube config
+  #   copy: 
+  #     src: 
+  

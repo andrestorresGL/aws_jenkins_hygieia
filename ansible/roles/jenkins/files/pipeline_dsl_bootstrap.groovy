@@ -1,62 +1,92 @@
-#!/usr/bin/env groovy
-pipeline{
-  agent any 
+import jenkins.*;
+import jenkins.model.*;
+import hudson.model.*;
+import hudson.triggers.SCMTrigger;
+import hudson.plugins.git.GitSCM;
+import hudson.plugins.git.BranchSpec;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import javaposse.jobdsl.plugin.*;
+import com.cloudbees.jenkins.plugins.awscredentials.*;
+import hudson.security.csrf.DefaultCrumbIssuer;
+import hudson.markup.RawHtmlMarkupFormatter;
 
-  stages {
-    stage('Build Project'){
-      steps{
-        git(
-          url: 'https://github.com/aetorres/Hygieia.git',
-          credentialsId: 'git-pass',
-          branch: 'master'
-                )
-      sh '''/usr/local/maven/bin/mvn clean install package'''
-      }
-      
+jenkins = Jenkins.instance;
+// two is enough for master since we have slaves
+jenkins.setNumExecutors(1);
+jenkins.setCrumbIssuer(new DefaultCrumbIssuer(true));
+
+jenkins.setMarkupFormatter(new RawHtmlMarkupFormatter(false))
+jenkins.save()
+
+def p = AgentProtocol.all()
+p.each { x ->
+    if (x.name?.contains("CLI")) {
+        p.remove(x)
     }
-
-    stage('Create Docker Images'){
-      steps{
-        sh '''/usr/local/maven/bin/mvn docker:build'''
-      }
-      
-    }
-
-    stage('Push Images to Docker Hub'){
-      steps{
-        //withDockerRegistry([credentialsId: 'docker-pass', url: 'https://hub.docker.com']){ 
-        sh '''    
-                docker login -u atorresd -p *****
-                docker push atorresd/hygieia-ui
-                docker push atorresd/hygieia-score-collector
-                docker push atorresd/hygieia-nexus-iq-collector 
-                docker push atorresd/hygieia-hspm-cmdb-collector
-                docker push atorresd/hygieia-gitlab-scm-collector
-                docker push atorresd/hygieia-subversion-scm-collector
-                docker push atorresd/hygieia-github-scm-collector
-
-                docker push atorresd/hygieia-bitbucket-scm-collector
-                docker push atorresd/hygieia-appdynamics-collector
-                docker push atorresd/hygieia-chat-ops-collector
-
-                docker push atorresd/hygieia-versionone-collector
-                docker push atorresd/hygieia-jira-feature-collector
-                docker push atorresd/hygieia-xldeploy-collector
-                docker push atorresd/hygieia-udeploy-collector
-                docker push atorresd/hygieia-sonar-codequality-collector
-                docker push atorresd/hygieia-jenkins-codequality-collector
-                docker push atorresd/hygieia-jenkins-cucumber-test-collector
-                docker push atorresd/hygieia-jenkins-build-collector
-                docker push atorresd/hygieia-bamboo-build-collector
-                docker push atorresd/hygieia-artifactory-artifact-collector
-                docker push atorresd/hygieia-apiaudit
-                docker push atorresd/hygieia-api
-      
-      
-      '''
-     // }
-      
-      }
-    }
-  }
 }
+
+def removal = { lst ->
+    lst.each { x ->
+        if (x.getClass().name.contains("CLIAction")) {
+            lst.remove(x)
+        }
+    }
+}
+
+def j = Jenkins.instance
+removal(j.getExtensionList(RootAction.class))
+removal(j.actions)
+// Disable script security
+GlobalConfiguration.all().get(GlobalJobDslSecurityConfiguration.class).useScriptSecurity=false
+GlobalConfiguration.all().get(GlobalJobDslSecurityConfiguration.class).save()
+jenkins.save();
+
+String pipelineScripts = '''
+  pipelineJob('Hygieia Job') {
+    logRotator(-1, 20, -1, -1)
+    configure {
+         it / definition / lightweight(true)
+    }
+    concurrentBuild(false)
+    definition {
+        cpsScm {
+            scm {
+                scriptPath ('Jenkinsfile')
+                git {
+                    branches('master')
+                    remote {
+                        url ('https://github.com/aetorres/Hygieia.git')
+                        
+                    }
+                }
+            }
+        }
+    }
+}
+
+ '''
+
+
+dsl = new hudson.model.FreeStyleProject(jenkins, "pipeline-dsl-bootstrap");
+gitTrigger1 = new SCMTrigger("* * * * *");
+dsl.addTrigger(gitTrigger1);
+
+def jobDslBuildStep = new ExecuteDslScripts(
+                            scriptText: pipelineScripts,
+                             usingScriptText: true,
+                            // ignoreExisting: false,
+                            // removedJobAction: RemovedJobAction.DELETE,
+                            // removedViewAction: RemovedViewAction.IGNORE
+                            );
+
+dsl.getBuildersList().add(jobDslBuildStep);
+
+
+jenkins.add(dsl, "pipeline-dsl-bootstrap");
+
+def job1 = jenkins.getItem(dsl.name)
+job1.scheduleBuild()
